@@ -1,12 +1,12 @@
 /**
  * Copyright 2014 Alessandro Lacava
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,12 +15,15 @@
  */
 package com.lambdista.util;
 
-import com.lambdista.util.Try;
+import org.hamcrest.CoreMatchers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -32,6 +35,9 @@ import static org.junit.Assert.assertTrue;
  * @since 2014-06-20
  */
 public class TryTest {
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testIsSuccess() {
@@ -58,11 +64,15 @@ public class TryTest {
         assertEquals("intResult must be 42", intResult, 42);
     }
 
-    @Test(expected = NumberFormatException.class)
+    @Test
     public void testGetAgainstAFailure() throws Exception {
         Try<Integer> result = Try.apply(
                 this::failure
         );
+
+        thrown.expect(ExceptionWrapper.class);
+        thrown.expectCause(CoreMatchers.isA(NumberFormatException.class));
+
         result.get();
     }
 
@@ -76,7 +86,7 @@ public class TryTest {
         );
     }
 
-    @Test(expected = NumberFormatException.class)
+    @Test
     public void testForEachAgainstAFailure() throws Exception {
         Try<Integer> result = Try.apply(
                 this::failure
@@ -85,7 +95,10 @@ public class TryTest {
                 i -> System.out.println("Since it's a failure it does not even get here. As a matter of fact this won't be printed")
         );
 
-        // Conversely, calling get mush throw the NumberFormatException captured in result
+        // Cause of the ExceptionWrapper must be NumberFormatException
+        thrown.expect(ExceptionWrapper.class);
+        thrown.expectCause(CoreMatchers.isA(NumberFormatException.class));
+
         result.get();
     }
 
@@ -101,7 +114,7 @@ public class TryTest {
 
     }
 
-    @Test(expected = NumberFormatException.class)
+    @Test
     public void testMapAgainstAFailure() throws Exception {
         Try<Integer> result = Try.apply(
                 this::failure
@@ -114,7 +127,10 @@ public class TryTest {
                 }
         );
 
-        // Conversely, calling get mush throw the NumberFormatException captured in result
+        // Cause of the ExceptionWrapper must be NumberFormatException
+        thrown.expect(ExceptionWrapper.class);
+        thrown.expectCause(CoreMatchers.isA(NumberFormatException.class));
+
         result.get();
     }
 
@@ -133,7 +149,7 @@ public class TryTest {
         assertEquals("flatMappedResult must be Success(\"42, Hello World!\")", flatMappedResult, new Try.Success<>("42, Hello World!"));
     }
 
-    @Test(expected = NumberFormatException.class)
+    @Test
     public void testFlatMapAgainstAFailure() throws Exception {
         Try<Integer> result = Try.apply(
                 this::failure
@@ -149,8 +165,11 @@ public class TryTest {
                 )
         );
 
-        // Conversely, calling get mush throw the NumberFormatException captured in result
-        chainedResult.get();
+        // Cause of the ExceptionWrapper must be NumberFormatException
+        thrown.expect(ExceptionWrapper.class);
+        thrown.expectCause(isA(NumberFormatException.class));
+
+        result.get();
     }
 
     @Test
@@ -163,7 +182,7 @@ public class TryTest {
         assertEquals("filteredResult must be Success(42)", filteredResult, new Try.Success<>(42));
     }
 
-    @Test(expected = NumberFormatException.class)
+    @Test
     public void testFilterAgainstAFailure() throws Exception {
         Try<Integer> result = Try.apply(
                 this::failure
@@ -176,11 +195,13 @@ public class TryTest {
                 }
         );
 
-        // Conversely, calling get mush throw the NumberFormatException captured in result
+        thrown.expect(ExceptionWrapper.class);
+        thrown.expectCause(isA(NumberFormatException.class));
+
         filteredResult.get();
     }
 
-    @Test(expected = NoSuchElementException.class)
+    @Test
     public void testNonMatchingFilter() throws Exception {
         Try<Integer> result = Try.apply(
                 this::success
@@ -190,7 +211,10 @@ public class TryTest {
                 i -> i != 42
         );
 
-        // In this case calling get mush throw a NoSuchElementException since the Predicate in filter does not hold
+        // In this case wrapper's cause must be NoSuchElementException since the Predicate in filter does not hold
+        thrown.expect(ExceptionWrapper.class);
+        thrown.expectCause(isA(NoSuchElementException.class));
+
         filteredResult.get();
     }
 
@@ -322,6 +346,7 @@ public class TryTest {
         Try<Integer> out = result.orElse(new Try.Success<>(84));
         assertEquals("out must be Success(42)", out, new Try.Success<>(42));
     }
+
     @Test
     public void testOrElseAgainstAFailure() {
         Try<Integer> result = Try.apply(
