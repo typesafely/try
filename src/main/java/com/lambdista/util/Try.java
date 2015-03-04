@@ -78,10 +78,10 @@ public abstract class Try<T> {
 
     /**
      * @return the value wrapped within {@code Success} if it's a {@code Success} or throws
-     * the exception if {@code this} is a {@code Failure}
-     * @throws Exception if {@code this} is a {@code Failure}
+     * the runtime wrapper upon exception if {@code this} is a {@code Failure}
+     * @throws com.lambdista.util.ExceptionWrapper if {@code this} is a {@code Failure}
      */
-    public abstract T get() throws Exception;
+    public abstract T get();
 
     /**
      * Feeds the value to {@link Consumer}'s {@code accept} method if {@code this} is
@@ -355,8 +355,8 @@ public abstract class Try<T> {
         }
 
         @Override
-        public T get() throws Exception {
-            throw exception;
+        public T get() {
+            throw new ExceptionWrapper(exception);
         }
 
         @Override
