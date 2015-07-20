@@ -15,7 +15,8 @@
  */
 package com.lambdista.util;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -23,14 +24,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.function.Function;
 
+
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Unit test for the {@code Try-Success-Failure} API. It covers each and every method of
@@ -43,6 +48,9 @@ public class TryTest {
 	
 	private Closeable closeableMock;
 	private InputStream inputStreamMock;
+	
+	@Rule
+	public ExpectedException expected = ExpectedException.none(); 
 
 	@Before
 	public void setup(){
@@ -84,7 +92,7 @@ public class TryTest {
     }
 
     @Test
-    public void testUncheckedGetAgainstASuccess() throws Exception {
+    public void testUncheckedGetAgainstASuccess() throws Throwable {
         Try<Integer> result = Try.apply(
                 this::success
         );
@@ -93,7 +101,7 @@ public class TryTest {
     }
 
     @Test(expected = NumberFormatException.class)
-    public void testCheckedGetAgainstAFailure() throws Exception {
+    public void testCheckedGetAgainstAFailure() throws Throwable {
         Try<Integer> result = Try.apply(
                 this::failure
         );
@@ -301,7 +309,7 @@ public class TryTest {
         Try<Integer> result = Try.apply(
                 this::success
         );
-        Try<Exception> failedOnASuccessProducesFailure = result.failed();
+        Try<Throwable> failedOnASuccessProducesFailure = result.failed();
         assertEquals("failedOnASuccessProducesFailure is a Failure", failedOnASuccessProducesFailure.isFailure(), true);
     }
 
@@ -310,7 +318,7 @@ public class TryTest {
         Try<Integer> result = Try.apply(
                 this::failure
         );
-        Try<Exception> failedOnAFailureProducesSuccess = result.failed();
+        Try<Throwable> failedOnAFailureProducesSuccess = result.failed();
         assertEquals("failedOnAFailureProducesSuccess is a Success", failedOnAFailureProducesSuccess.isSuccess(), true);
     }
 
@@ -419,6 +427,12 @@ public class TryTest {
     	verify(inputStreamMock, never()).close();
     	Try.apply(inputStream -> failure()).apply(inputStreamMock);
     	verify(inputStreamMock).close();
+    }
+    
+    @Test
+    public void testErrorsAreRethrown() {
+    	expected.expect(Error.class);
+    	Try.apply(() -> {throw new Error();});
     }
 
     private int success() {
