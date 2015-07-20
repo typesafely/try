@@ -88,7 +88,7 @@ public abstract class Try<T> {
      * this} is a {@code Failure}
      * @throws Exception if {@code this} is a {@code Failure}
      */
-    public abstract T checkedGet() throws Exception;
+    public abstract T checkedGet() throws Throwable;
 
     /**
      * Feeds the value to {@link Consumer}'s {@code accept} method if {@code this} is
@@ -141,9 +141,9 @@ public abstract class Try<T> {
      * @param recoverFunc the function to apply if {@code this} is a {@link Failure}
      * @param <U>         the type of the result
      * @return a {@code Try<U>} obtained by wrapping the result of applying {@code recoverFunc} to
-     * the {@link java.lang.Exception}
+     * the {@link java.lang.Throwable}
      */
-    public abstract <U> Try<U> recover(Function<? super Exception, ? extends U> recoverFunc);
+    public abstract <U> Try<U> recover(Function<? super Throwable, ? extends U> recoverFunc);
 
     /**
      * Applies the given function {@code recoverFunc} if {@code this} is a {@link Failure},
@@ -151,17 +151,17 @@ public abstract class Try<T> {
      *
      * @param recoverFunc the function to apply if {@code this} is a {@link Failure}
      * @param <U>         the type of the result
-     * @return a {@code Try<U>} obtained by applying {@code recoverFunc} to the {@link java.lang.Exception}
+     * @return a {@code Try<U>} obtained by applying {@code recoverFunc} to the {@link java.lang.Throwable}
      */
-    public abstract <U> Try<U> recoverWith(Function<? super Exception, ? extends Try<U>> recoverFunc);
+    public abstract <U> Try<U> recoverWith(Function<? super Throwable, ? extends Try<U>> recoverFunc);
 
     /**
-     * Completes {@code this} {@code Try} with an exception wrapped in a {@link Success}.
+     * Completes {@code this} {@code Try} with an throwable wrapped in a {@link Success}.
      *
-     * @return a {@code Try<Exception>}, where {@code Exception} is either the exception that the {@code Try} failed
+     * @return a {@code Try<Throwable>}, where {@code Throwable} is either the throwable that the {@code Try} failed
      * with (if {@code this} is a {@link Failure}) or an {@link java.lang.UnsupportedOperationException}
      */
-    public abstract Try<Exception> failed();
+    public abstract Try<Throwable> failed();
 
     /**
      * Converts this {@code Try<T>} into a {@code java.util.Optional<T>}
@@ -195,7 +195,7 @@ public abstract class Try<T> {
      * @return a {@code Try<U>} obtained by applying either {@code successFunc} or {@code failureFunc}
      */
     public abstract <U> Try<U> transform(Function<? super T, ? extends Try<U>> successFunc,
-                                         Function<Exception, ? extends Try<U>> failureFunc);
+                                         Function<Throwable, ? extends Try<U>> failureFunc);
 
 	/**
 	 * Converts a {@link Function} expecting an {@link AutoClosable} into a
@@ -222,6 +222,7 @@ public abstract class Try<T> {
     /**
      * Constructs a {@code Try} using the {@link FailableSupplier} parameter. This
      * method will ensure any non-fatal exception is caught and a {@link Failure} object is returned.
+     * Any fatal error is not caught and rethrown.
      *
      * @param supplier the {@link FailableSupplier} to use
      * @param <T>      the type returned by the {@link FailableSupplier}
@@ -230,7 +231,9 @@ public abstract class Try<T> {
     public static <T> Try<T> apply(FailableSupplier<T> supplier) {
         try {
             return new Success<>(supplier.get());
-        } catch (Exception e) {
+        }catch(Error e){
+        	throw e;
+        } catch (Throwable e) {
             return new Failure<>(e);
         }
     }
@@ -284,7 +287,7 @@ public abstract class Try<T> {
         public <U> Try<U> flatMap(Function<? super T, ? extends Try<U>> mapper) {
             try {
                 return mapper.apply(value);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 return new Failure<>(e);
             }
         }
@@ -297,25 +300,25 @@ public abstract class Try<T> {
                 } else {
                     return new Failure<>(new NoSuchElementException("Predicate does not hold for " + value));
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 return new Failure<>(e);
             }
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public <U> Try<U> recover(Function<? super Exception, ? extends U> recoverFunc) {
+        public <U> Try<U> recover(Function<? super Throwable, ? extends U> recoverFunc) {
             return (Try<U>) this;
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public <U> Try<U> recoverWith(Function<? super Exception, ? extends Try<U>> recoverFunc) {
+        public <U> Try<U> recoverWith(Function<? super Throwable, ? extends Try<U>> recoverFunc) {
             return (Try<U>) this;
         }
 
         @Override
-        public Try<Exception> failed() {
+        public Try<Throwable> failed() {
             return new Failure<>(new UnsupportedOperationException("Success.failed"));
         }
 
@@ -336,7 +339,7 @@ public abstract class Try<T> {
 
         @Override
         public <U> Try<U> transform(Function<? super T, ? extends Try<U>> successFunc,
-                                    Function<Exception, ? extends Try<U>> failureFunc) {
+                                    Function<Throwable, ? extends Try<U>> failureFunc) {
             return successFunc.apply(value);
         }
 
@@ -372,12 +375,12 @@ public abstract class Try<T> {
      */
     public static final class Failure<T> extends Try<T> {
 
-        private final Exception exception;
+        private final Throwable throwable;
         private final GetOfFailureException unckeckedException;
 
-        public Failure(Exception exception) {
-            this.exception = exception;
-            this.unckeckedException = new GetOfFailureException(exception);
+        public Failure(Throwable throwable) {
+            this.throwable = throwable;
+            this.unckeckedException = new GetOfFailureException(throwable);
         }
 
         @Override
@@ -396,8 +399,8 @@ public abstract class Try<T> {
         }
 
         @Override
-        public T checkedGet() throws Exception {
-            throw exception;
+        public T checkedGet() throws Throwable {
+            throw throwable;
         }
 
         @Override
@@ -422,26 +425,26 @@ public abstract class Try<T> {
         }
 
         @Override
-        public <U> Try<U> recover(Function<? super Exception, ? extends U> recoverFunc) {
+        public <U> Try<U> recover(Function<? super Throwable, ? extends U> recoverFunc) {
             try {
-                return Try.apply(() -> recoverFunc.apply(exception));
-            } catch (Exception e) {
+                return Try.apply(() -> recoverFunc.apply(throwable));
+            } catch (Throwable e) {
                 return new Failure<>(e);
             }
         }
 
         @Override
-        public <U> Try<U> recoverWith(Function<? super Exception, ? extends Try<U>> recoverFunc) {
+        public <U> Try<U> recoverWith(Function<? super Throwable, ? extends Try<U>> recoverFunc) {
             try {
-                return recoverFunc.apply(exception);
-            } catch (Exception e) {
+                return recoverFunc.apply(throwable);
+            } catch (Throwable e) {
                 return new Failure<>(e);
             }
         }
 
         @Override
-        public Try<Exception> failed() {
-            return new Success<>(exception);
+        public Try<Throwable> failed() {
+            return new Success<>(throwable);
         }
 
         @Override
@@ -461,8 +464,8 @@ public abstract class Try<T> {
 
         @Override
         public <U> Try<U> transform(Function<? super T, ? extends Try<U>> successFunc,
-                                    Function<Exception, ? extends Try<U>> failureFunc) {
-            return failureFunc.apply(exception);
+                                    Function<Throwable, ? extends Try<U>> failureFunc) {
+            return failureFunc.apply(throwable);
         }
 
         @Override
@@ -472,19 +475,19 @@ public abstract class Try<T> {
 
             Failure failure = (Failure) o;
 
-            return failure.exception.equals(exception);
+            return failure.throwable.equals(throwable);
 
         }
 
         @Override
         public int hashCode() {
-            return exception.hashCode();
+            return throwable.hashCode();
         }
 
         @Override
         public String toString() {
             return "Failure{" +
-                    "exception=" + exception +
+                    "throwable=" + throwable +
                     '}';
         }
     }
